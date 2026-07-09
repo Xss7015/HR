@@ -17,12 +17,25 @@ def get_phone_keyboard(lang: str):
         resize_keyboard=True
     )
 
+def get_document_keyboard(lang: str):
+    """Клавиатура выбора документа (НОВЫЙ ВОПРОС)"""
+    from bot.translations import get_text
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=get_text(lang, 'doc_visa')), KeyboardButton(text=get_text(lang, 'doc_id'))],
+            [KeyboardButton(text=get_text(lang, 'doc_other'))]
+        ],
+        resize_keyboard=True
+    )
+
 def get_visa_keyboard(lang: str):
+    """Клавиатура выбора визы (ОБНОВЛЁННАЯ)"""
     from bot.translations import get_text
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="B/1"), KeyboardButton(text="B/2")],
             [KeyboardButton(text="A/5"), KeyboardButton(text="A/2")],
+            [KeyboardButton(text=get_text(lang, 'visa_refugee')), KeyboardButton(text=get_text(lang, 'visa_blue_paper'))],
             [KeyboardButton(text=get_text(lang, 'visa_other'))]
         ],
         resize_keyboard=True
@@ -53,16 +66,13 @@ def get_admin_keyboard(lang: str):
     )
 
 def get_main_keyboard(tg_id: int, lang: str):
-    """Главная клавиатура для пользователя (админ-кнопка только для админов)"""
     from bot.translations import get_text
     buttons = [
-        [KeyboardButton(text="📋 Вакансии")],
-        [KeyboardButton(text="ℹ️ Помощь")]
+        [KeyboardButton(text=get_text(lang, 'vacancies_btn'))],
+        [KeyboardButton(text=get_text(lang, 'help_btn'))]
     ]
-    
     if tg_id in ADMIN_IDS:
-        buttons.append([KeyboardButton(text="🔧 Админ-панель")])
-    
+        buttons.append([KeyboardButton(text=get_text(lang, 'admin_btn'))])
     return ReplyKeyboardMarkup(
         keyboard=buttons,
         resize_keyboard=True
@@ -73,6 +83,7 @@ def get_visa_list_keyboard():
         keyboard=[
             [KeyboardButton(text="B/1"), KeyboardButton(text="B/2")],
             [KeyboardButton(text="A/5"), KeyboardButton(text="A/2")],
+            [KeyboardButton(text="Refugee"), KeyboardButton(text="Blue Paper")],
             [KeyboardButton(text="Other")]
         ],
         resize_keyboard=True

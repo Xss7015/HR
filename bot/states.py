@@ -6,6 +6,7 @@ class LanguageState(StatesGroup):
 class SurveyState(StatesGroup):
     phone = State()
     name = State()
+    document = State()          # <--- НОВЫЙ ВОПРОС
     visa = State()
     change_visa = State()
     add_vacancy_title = State()

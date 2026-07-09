@@ -25,7 +25,6 @@ def is_admin(tg_id: int) -> bool:
     return tg_id in ADMIN_IDS
 
 async def notify_admins(tg_id: int, name: str, phone: str, visa: str):
-    """Уведомить всех админов о новом кандидате"""
     if not ADMIN_IDS:
         return
     
@@ -43,7 +42,7 @@ async def notify_admins(tg_id: int, name: str, phone: str, visa: str):
         except Exception as e:
             logger.error(f"Не удалось отправить уведомление админу {admin_id}: {e}")
 
-# ============ ОТКРЫТИЕ АДМИНКИ ============
+# ============ АДМИН-ПАНЕЛЬ ============
 
 @router.message(Command("admin"))
 async def admin_panel(message: Message):
@@ -58,11 +57,10 @@ async def admin_panel(message: Message):
         reply_markup=get_admin_keyboard(lang)
     )
 
-# ============ КАНДИДАТЫ (НОВАЯ ФУНКЦИЯ) ============
+# ============ КАНДИДАТЫ ============
 
 @router.message(F.text.contains("👤 Кандидаты"))
 async def admin_candidates(message: Message):
-    """Показать всех кандидатов"""
     if not is_admin(message.from_user.id):
         return
     
@@ -70,16 +68,16 @@ async def admin_candidates(message: Message):
     users = await get_all_users()
     
     if not users:
-        await message.answer("📭 Нет зарегистрированных кандидатов")
+        await message.answer(get_text(lang, 'admin_no_candidates'))
         return
     
     text = format_candidates_list(users)
     await message.answer(
-        f"📋 *Список кандидатов:*\n\n{text}",
+        get_text(lang, 'admin_candidates_list', candidates=text),
         parse_mode="Markdown"
     )
 
-# ============ ПРОСМОТР ВАКАНСИЙ ============
+# ============ ВАКАНСИИ ============
 
 @router.message(F.text.contains("📋 Вакансии"))
 async def admin_vacancies(message: Message):
@@ -99,7 +97,7 @@ async def admin_vacancies(message: Message):
         parse_mode="Markdown"
     )
 
-# ============ ДОБАВЛЕНИЕ ВАКАНСИИ ============
+# ============ ДОБАВЛЕНИЕ ============
 
 @router.message(F.text.contains("➕ Добавить"))
 async def admin_add_start(message: Message, state: FSMContext):
@@ -135,8 +133,6 @@ async def admin_add_photo(message: Message, state: FSMContext):
     photo_id = ''
     if message.photo:
         photo_id = message.photo[-1].file_id
-    elif message.text and message.text == get_text(await get_user_language(message.from_user.id), 'skip'):
-        pass
     
     await state.update_data(photo_id=photo_id)
     lang = await get_user_language(message.from_user.id)
@@ -164,7 +160,7 @@ async def admin_add_visa(message: Message, state: FSMContext):
     )
     await state.clear()
 
-# ============ УДАЛЕНИЕ ВАКАНСИИ ============
+# ============ УДАЛЕНИЕ ============
 
 @router.message(F.text.contains("🗑 Удалить"))
 async def admin_delete_start(message: Message, state: FSMContext):
@@ -192,11 +188,10 @@ async def admin_delete(message: Message, state: FSMContext):
         )
     except ValueError:
         await message.answer("❌ Введите число (ID вакансии)")
-        return
     
     await state.clear()
 
-# ============ РЕДАКТИРОВАНИЕ ВАКАНСИИ ============
+# ============ РЕДАКТИРОВАНИЕ ============
 
 @router.message(F.text.contains("✏️ Редактировать"))
 async def admin_edit_start(message: Message, state: FSMContext):
@@ -228,49 +223,32 @@ async def admin_edit_id(message: Message, state: FSMContext):
             get_text(lang, 'admin_edit_title'),
             reply_markup=get_skip_keyboard(lang)
         )
-        
     except ValueError:
         await message.answer("❌ Введите число (ID вакансии)")
 
 @router.message(StateFilter(SurveyState.edit_vacancy_title))
 async def admin_edit_title(message: Message, state: FSMContext):
     lang = await get_user_language(message.from_user.id)
-    
     if message.text != get_text(lang, 'skip'):
         await state.update_data(edit_title=message.text)
-    
     await state.set_state(SurveyState.edit_vacancy_description)
-    await message.answer(
-        get_text(lang, 'admin_edit_description'),
-        reply_markup=get_skip_keyboard(lang)
-    )
+    await message.answer(get_text(lang, 'admin_edit_description'), reply_markup=get_skip_keyboard(lang))
 
 @router.message(StateFilter(SurveyState.edit_vacancy_description))
 async def admin_edit_description(message: Message, state: FSMContext):
     lang = await get_user_language(message.from_user.id)
-    
     if message.text != get_text(lang, 'skip'):
         await state.update_data(edit_description=message.text)
-    
     await state.set_state(SurveyState.edit_vacancy_photo)
-    await message.answer(
-        get_text(lang, 'admin_edit_photo'),
-        reply_markup=get_skip_keyboard(lang)
-    )
+    await message.answer(get_text(lang, 'admin_edit_photo'), reply_markup=get_skip_keyboard(lang))
 
 @router.message(StateFilter(SurveyState.edit_vacancy_photo))
 async def admin_edit_photo(message: Message, state: FSMContext):
     lang = await get_user_language(message.from_user.id)
-    
-    if message.text != get_text(lang, 'skip'):
-        if message.photo:
-            await state.update_data(edit_photo_id=message.photo[-1].file_id)
-    
+    if message.text != get_text(lang, 'skip') and message.photo:
+        await state.update_data(edit_photo_id=message.photo[-1].file_id)
     await state.set_state(SurveyState.edit_vacancy_visa)
-    await message.answer(
-        get_text(lang, 'admin_edit_visa'),
-        reply_markup=get_skip_keyboard(lang)
-    )
+    await message.answer(get_text(lang, 'admin_edit_visa'), reply_markup=get_skip_keyboard(lang))
 
 @router.message(StateFilter(SurveyState.edit_vacancy_visa))
 async def admin_edit_visa(message: Message, state: FSMContext):
@@ -279,7 +257,6 @@ async def admin_edit_visa(message: Message, state: FSMContext):
     data = await state.get_data()
     
     update_data = {}
-    
     if data.get('edit_title'):
         update_data['title'] = data['edit_title']
     if data.get('edit_description'):
@@ -301,7 +278,7 @@ async def admin_edit_visa(message: Message, state: FSMContext):
     )
     await state.clear()
 
-# ============ ПРОСМОТР ЗАЯВОК ============
+# ============ ЗАЯВКИ ============
 
 @router.message(F.text.contains("📊 Заявки"))
 async def admin_requests(message: Message):
