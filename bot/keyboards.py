@@ -18,25 +18,27 @@ def get_phone_keyboard(lang: str):
     )
 
 def get_document_keyboard(lang: str):
-    """Клавиатура выбора документа (НОВЫЙ ВОПРОС)"""
+    """Клавиатура выбора документа (С КНОПКОЙ НАЗАД)"""
     from bot.translations import get_text
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text=get_text(lang, 'doc_visa')), KeyboardButton(text=get_text(lang, 'doc_id'))],
-            [KeyboardButton(text=get_text(lang, 'doc_other'))]
+            [KeyboardButton(text=get_text(lang, 'doc_other'))],
+            [KeyboardButton(text=f"⬅️ {get_text(lang, 'back')}")]
         ],
         resize_keyboard=True
     )
 
 def get_visa_keyboard(lang: str):
-    """Клавиатура выбора визы (ОБНОВЛЁННАЯ)"""
+    """Клавиатура выбора визы (С КНОПКОЙ НАЗАД)"""
     from bot.translations import get_text
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="B/1"), KeyboardButton(text="B/2")],
             [KeyboardButton(text="A/5"), KeyboardButton(text="A/2")],
             [KeyboardButton(text=get_text(lang, 'visa_refugee')), KeyboardButton(text=get_text(lang, 'visa_blue_paper'))],
-            [KeyboardButton(text=get_text(lang, 'visa_other'))]
+            [KeyboardButton(text=get_text(lang, 'visa_other'))],
+            [KeyboardButton(text=f"⬅️ {get_text(lang, 'back')}")]
         ],
         resize_keyboard=True
     )
@@ -94,6 +96,16 @@ def get_skip_keyboard(lang: str):
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text=get_text(lang, 'skip'))]
+        ],
+        resize_keyboard=True
+    )
+
+def get_back_keyboard(lang: str):
+    """Клавиатура только с кнопкой "Назад" (для универсальности)"""
+    from bot.translations import get_text
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=f"⬅️ {get_text(lang, 'back')}")]
         ],
         resize_keyboard=True
     )

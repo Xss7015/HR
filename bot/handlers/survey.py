@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.types import Message, ReplyKeyboardRemove, Contact
+from aiogram.types import Message, ReplyKeyboardRemove, Contact, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 import re
@@ -10,7 +10,8 @@ from bot.keyboards import (
     get_phone_keyboard,
     get_document_keyboard,
     get_visa_keyboard,
-    get_main_keyboard
+    get_main_keyboard,
+    get_back_keyboard
 )
 from bot.translations import get_text
 from database import (
@@ -111,6 +112,16 @@ async def process_document(message: Message, state: FSMContext):
         get_text(lang, 'doc_other')
     ]
 
+    # Если нажал "Назад" — возвращаемся к имени
+    if doc_text == get_text(lang, 'back'):
+        await state.set_state(SurveyState.name)
+        await message.answer(
+            get_text(lang, 'enter_name'),
+            parse_mode="Markdown",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return
+
     if doc_text not in valid_docs:
         await message.answer(
             get_text(lang, 'choose_from_buttons'),
@@ -120,7 +131,7 @@ async def process_document(message: Message, state: FSMContext):
 
     await state.update_data(document=doc_text)
 
-    # Если выбрали "Другое" — пропускаем вопрос о визе
+    # Если выбрали "Другое" — ПРОПУСКАЕМ ВИЗУ!
     if doc_text == get_text(lang, 'doc_other'):
         data = await state.get_data()
         await notify_admins(
@@ -132,6 +143,7 @@ async def process_document(message: Message, state: FSMContext):
         await handle_vacancies(message, state, lang, "")
         return
 
+    # Если выбрали визу или ID — спрашиваем тип визы
     await state.set_state(SurveyState.visa)
     await message.answer(
         get_text(lang, 'visa_question'),
@@ -146,6 +158,16 @@ async def process_visa(message: Message, state: FSMContext):
     tg_id = message.from_user.id
     lang = await get_user_language(tg_id)
     visa = message.text.strip()
+
+    # Если нажал "Назад" — возвращаемся к документу
+    if visa == get_text(lang, 'back'):
+        await state.set_state(SurveyState.document)
+        await message.answer(
+            get_text(lang, 'doc_question'),
+            parse_mode="Markdown",
+            reply_markup=get_document_keyboard(lang)
+        )
+        return
 
     valid_visas = [
         'B/1', 'B/2', 'A/5', 'A/2',
