@@ -1,5 +1,5 @@
 from aiogram import Router, F
-from aiogram.types import Message, ReplyKeyboardRemove, Contact, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import Message, ReplyKeyboardRemove, Contact
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 import re
@@ -10,8 +10,7 @@ from bot.keyboards import (
     get_phone_keyboard,
     get_document_keyboard,
     get_visa_keyboard,
-    get_main_keyboard,
-    get_back_keyboard
+    get_main_keyboard
 )
 from bot.translations import get_text
 from database import (
@@ -131,15 +130,20 @@ async def process_document(message: Message, state: FSMContext):
 
     await state.update_data(document=doc_text)
 
-    # Если выбрали "Другое" — ПРОПУСКАЕМ ВИЗУ!
+    # ============ ГЛАВНЫЙ ФИКС: "Другое" ============
     if doc_text == get_text(lang, 'doc_other'):
         data = await state.get_data()
+        
+        # Уведомляем админов
         await notify_admins(
             tg_id=tg_id,
             name=data.get('name', ''),
             phone=data.get('phone', ''),
             visa="Другое (документ не указан)"
         )
+        
+        # Очищаем состояние и переходим к вакансиям
+        await state.clear()
         await handle_vacancies(message, state, lang, "")
         return
 
@@ -194,4 +198,6 @@ async def process_visa(message: Message, state: FSMContext):
         visa=visa
     )
 
+    # Очищаем состояние и переходим к вакансиям
+    await state.clear()
     await handle_vacancies(message, state, lang, visa)
