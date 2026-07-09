@@ -3,8 +3,8 @@ import logging
 import sqlite3
 from datetime import datetime
 from dotenv import load_dotenv
-from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -57,7 +57,15 @@ def update_user_phone(user_id: int, phone: str):
     c.execute('UPDATE users SET phone = ? WHERE user_id = ?', (phone, user_id))
     conn.commit()
     conn.close()
-    logging.info(f"✅ Номер {phone} сохранён")
+    logging.info(f"✅ Номер {phone} сохранён для user_id={user_id}")
+
+def get_user_phone(user_id: int):
+    conn = sqlite3.connect('users.db')
+    c = conn.cursor()
+    c.execute('SELECT phone FROM users WHERE user_id = ?', (user_id,))
+    row = c.fetchone()
+    conn.close()
+    return row[0] if row else None
 
 # ========== FSM ==========
 class Form(StatesGroup):
@@ -75,18 +83,23 @@ async def cmd_start(message: types.Message):
 # ========== КОМАНДА /PHONE ==========
 @dp.message(Command("phone"))
 async def cmd_phone(message: types.Message, state: FSMContext):
-    # Правильный способ создать кнопку с запросом контакта в aiogram 3.x
+    # Проверяем, есть ли уже номер у пользователя
+    existing_phone = get_user_phone(message.from_user.id)
+    if existing_phone:
+        await message.answer(f"✅ У нас уже есть твой номер: {existing_phone}\n\nЕсли хочешь обновить — отправь /phone снова.")
+        return
+
     button = KeyboardButton(text="📱 Отправить номер", request_contact=True)
     keyboard = ReplyKeyboardMarkup(keyboard=[[button]], resize_keyboard=True)
     
     await state.set_state(Form.waiting_phone)
     await message.answer(
-        "Нажми на кнопку ниже, чтобы отправить свой номер телефона:",
+        "📞 Нажми на кнопку ниже, чтобы поделиться номером телефона:",
         reply_markup=keyboard
     )
 
-# ========== ОБРАБОТКА КОНТАКТА ==========
-@dp.message(Form.waiting_phone, lambda message: message.contact is not None)
+# ========== ОБРАБОТКА КОНТАКТА (ОСНОВНОЙ) ==========
+@dp.message(Form.waiting_phone, F.contact)
 async def process_contact(message: types.Message, state: FSMContext):
     phone = message.contact.phone_number
     user_id = message.from_user.id
@@ -99,8 +112,8 @@ async def process_contact(message: types.Message, state: FSMContext):
     )
 
 # ========== ОБРАБОТКА ТЕКСТА В СОСТОЯНИИ ==========
-@dp.message(Form.waiting_phone)
-async def process_phone_invalid(message: types.Message, state: FSMContext):
+@dp.message(StateFilter(Form.waiting_phone))
+async def process_invalid(message: types.Message, state: FSMContext):
     await message.answer(
         "⚠️ Пожалуйста, используй кнопку '📱 Отправить номер' для отправки контакта.\n\n"
         "Если кнопка не отображается, отправь /phone заново."
@@ -108,7 +121,11 @@ async def process_phone_invalid(message: types.Message, state: FSMContext):
 
 # ========== ЗАПУСК ==========
 async def main():
+    # === ПРИНУДИТЕЛЬНО УБИВАЕМ ВСЕ КОНФЛИКТЫ ===
     await bot.delete_webhook(drop_pending_updates=True)
+    # === ДОПОЛНИТЕЛЬНЫЙ СБРОС ===
+    await bot.send_message(chat_id=8841710268, text="🔄 Бот перезапущен")
+    
     init_db()
     logging.info("🚀 Запуск бота...")
     await dp.start_polling(bot, skip_updates=True)
