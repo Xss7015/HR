@@ -83,10 +83,9 @@ async def cmd_start(message: types.Message):
 # ========== КОМАНДА /PHONE ==========
 @dp.message(Command("phone"))
 async def cmd_phone(message: types.Message, state: FSMContext):
-    # Проверяем, есть ли уже номер у пользователя
     existing_phone = get_user_phone(message.from_user.id)
     if existing_phone:
-        await message.answer(f"✅ У нас уже есть твой номер: {existing_phone}\n\nЕсли хочешь обновить — отправь /phone снова.")
+        await message.answer(f"✅ У нас уже есть твой номер: {existing_phone}")
         return
 
     button = KeyboardButton(text="📱 Отправить номер", request_contact=True)
@@ -94,11 +93,11 @@ async def cmd_phone(message: types.Message, state: FSMContext):
     
     await state.set_state(Form.waiting_phone)
     await message.answer(
-        "📞 Нажми на кнопку ниже, чтобы поделиться номером телефона:",
+        "📞 Нажми на кнопку ниже, чтобы поделиться номером:",
         reply_markup=keyboard
     )
 
-# ========== ОБРАБОТКА КОНТАКТА (ОСНОВНОЙ) ==========
+# ========== ОБРАБОТКА КОНТАКТА ==========
 @dp.message(Form.waiting_phone, F.contact)
 async def process_contact(message: types.Message, state: FSMContext):
     phone = message.contact.phone_number
@@ -115,17 +114,14 @@ async def process_contact(message: types.Message, state: FSMContext):
 @dp.message(StateFilter(Form.waiting_phone))
 async def process_invalid(message: types.Message, state: FSMContext):
     await message.answer(
-        "⚠️ Пожалуйста, используй кнопку '📱 Отправить номер' для отправки контакта.\n\n"
+        "⚠️ Пожалуйста, используй кнопку '📱 Отправить номер'.\n"
         "Если кнопка не отображается, отправь /phone заново."
     )
 
 # ========== ЗАПУСК ==========
 async def main():
-    # === ПРИНУДИТЕЛЬНО УБИВАЕМ ВСЕ КОНФЛИКТЫ ===
+    # Удаляем вебхук и сбрасываем конфликты
     await bot.delete_webhook(drop_pending_updates=True)
-    # === ДОПОЛНИТЕЛЬНЫЙ СБРОС ===
-    await bot.send_message(chat_id=8841710268, text="🔄 Бот перезапущен")
-    
     init_db()
     logging.info("🚀 Запуск бота...")
     await dp.start_polling(bot, skip_updates=True)
