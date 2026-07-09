@@ -4,8 +4,10 @@ import os
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.types import WebhookInfo
+from aiogram.webhook.aiohttp_server import SimpleWebhookResponse, setup_application
 
-from config import BOT_TOKEN
+from config import BOT_TOKEN, WEBHOOK_URL, WEBHOOK_PORT, WEBHOOK_PATH
 from database import init_db
 from bot.handlers import start, language, survey, vacancies, admin, manager
 
@@ -14,6 +16,19 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+async def on_startup(bot: Bot) -> None:
+    """При старте устанавливаем вебхук"""
+    await bot.set_webhook(
+        url=f"{WEBHOOK_URL}{WEBHOOK_PATH}",
+        drop_pending_updates=True
+    )
+    logger.info("✅ Webhook установлен")
+
+async def on_shutdown(bot: Bot) -> None:
+    """При остановке удаляем вебхук"""
+    await bot.delete_webhook()
+    logger.info("✅ Webhook удален")
 
 async def main():
     logger.info("🚀 Запуск бота...")
@@ -37,12 +52,27 @@ async def main():
     
     logger.info("✅ Все роутеры зарегистрированы")
     
-    # ДЛЯ RENDER: удаляем вебхук и переходим на polling
-    await bot.delete_webhook(drop_pending_updates=True)
-    logger.info("✅ Webhook удален")
+    # Для Render используем вебхук
+    from aiohttp import web
     
-    logger.info("✅ Бот запущен! Ожидаем сообщения...")
-    await dp.start_polling(bot, skip_updates=True)
+    app = web.Application()
+    webhook_requests_handler = SimpleWebhookResponse(
+        bot=bot,
+        dispatcher=dp,
+        path=WEBHOOK_PATH,
+    )
+    webhook_requests_handler.register(app, path=WEBHOOK_PATH)
+    
+    app.on_startup.append(lambda _: on_startup(bot))
+    app.on_shutdown.append(lambda _: on_shutdown(bot))
+    
+    logger.info(f"✅ Бот запущен на порту {WEBHOOK_PORT}")
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, host="0.0.0.0", port=WEBHOOK_PORT)
+    await site.start()
+    
+    await asyncio.Event().wait()
 
 if __name__ == "__main__":
     try:
