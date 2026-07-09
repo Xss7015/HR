@@ -37,11 +37,12 @@ async def main():
     
     logger.info("✅ Все роутеры зарегистрированы")
     
+    # ДЛЯ RENDER: удаляем вебхук и переходим на polling
     await bot.delete_webhook(drop_pending_updates=True)
     logger.info("✅ Webhook удален")
     
     logger.info("✅ Бот запущен! Ожидаем сообщения...")
-    await dp.start_polling(bot)
+    await dp.start_polling(bot, skip_updates=True)
 
 if __name__ == "__main__":
     try:
